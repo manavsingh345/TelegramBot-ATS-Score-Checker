@@ -7,10 +7,37 @@ const STOP_WORDS = new Set([
   'years', 'year', 'using', 'should', 'must', 'can', 'able', 'good'
 ]);
 
+const IMPORTANT_PHRASES = [
+  'full stack',
+  'front end',
+  'frontend',
+  'back end',
+  'backend',
+  'node js',
+  'nodejs',
+  'react js',
+  'reactjs',
+  'rest api',
+  'mongodb',
+  'sql',
+  'aws',
+  'docker',
+  'kubernetes',
+  'microservices',
+  'javascript',
+  'typescript',
+  'python',
+  'java',
+  'machine learning',
+  'data analysis',
+  'problem solving',
+  'system design'
+];
+
 function normalizeText(text = '') {
   return text
     .toLowerCase()
-    .replace(/[^a-z0-9+#.\s]/g, ' ')
+    .replace(/[^a-z0-9+#\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -23,9 +50,16 @@ function tokenize(text = '') {
 
 function getTopKeywords(text, limit = 25) {
   const frequency = new Map();
+  const normalized = normalizeText(text);
 
   tokenize(text).forEach((word) => {
     frequency.set(word, (frequency.get(word) || 0) + 1);
+  });
+
+  IMPORTANT_PHRASES.forEach((phrase) => {
+    if (normalized.includes(phrase)) {
+      frequency.set(phrase, (frequency.get(phrase) || 0) + 3);
+    }
   });
 
   return [...frequency.entries()]
@@ -35,6 +69,7 @@ function getTopKeywords(text, limit = 25) {
 }
 
 function scoreResumeAgainstJob({ resumeText, jobDescription }) {
+  const normalizedResume = normalizeText(resumeText);
   const resumeTokens = new Set(tokenize(resumeText));
   const keywords = getTopKeywords(jobDescription);
 
@@ -47,10 +82,18 @@ function scoreResumeAgainstJob({ resumeText, jobDescription }) {
     };
   }
 
-  const matchedKeywords = keywords.filter((keyword) => resumeTokens.has(keyword));
-  const missingKeywords = keywords.filter((keyword) => !resumeTokens.has(keyword));
+  const matchedKeywords = keywords.filter((keyword) => {
+    if (keyword.includes(' ')) {
+      return normalizedResume.includes(keyword);
+    }
+
+    return resumeTokens.has(keyword);
+  });
+
+  const missingKeywords = keywords.filter((keyword) => !matchedKeywords.includes(keyword));
   const rawScore = Math.round((matchedKeywords.length / keywords.length) * 100);
-  const score = Math.max(15, rawScore);
+  const bonus = matchedKeywords.some((keyword) => keyword.includes(' ')) ? 5 : 0;
+  const score = Math.min(100, Math.max(15, rawScore + bonus));
 
   const suggestions = [
     missingKeywords.length
@@ -69,5 +112,6 @@ function scoreResumeAgainstJob({ resumeText, jobDescription }) {
 }
 
 module.exports = {
+  normalizeText,
   scoreResumeAgainstJob
 };

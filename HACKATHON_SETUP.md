@@ -36,8 +36,8 @@ Required values:
 
 Optional for the ATS version:
 
-- `OPENAI_API_KEY`
-  Needed if we use AI to extract keywords, improve suggestions, and explain score reasoning
+- `GEMINI_API_KEY`
+  Needed if we use Gemini AI for smarter suggestions, role-fit summary, and interview questions
 
 ## Local run steps
 

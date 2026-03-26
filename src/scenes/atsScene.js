@@ -2,6 +2,7 @@ const { Scenes } = require('telegraf');
 
 const AtsAnalysis = require('../models/atsAnalyses');
 const { scoreResumeAgainstJob } = require('../helpers/atsScorer');
+const { generateAiAtsInsights } = require('../helpers/geminiService');
 const { getTelegramFileBuffer, extractResumeText } = require('../helpers/resumeParser');
 
 const atsScene = new Scenes.WizardScene(
@@ -56,29 +57,70 @@ const atsScene = new Scenes.WizardScene(
       jobDescription
     });
 
+    let aiInsights = null;
+
+    try {
+      aiInsights = await generateAiAtsInsights({
+        resumeText: ctx.wizard.state.ats.resumeText,
+        jobDescription,
+        score,
+        matchedKeywords,
+        missingKeywords
+      });
+    } catch (error) {
+      console.log('Gemini analysis skipped:', error.message);
+    }
+
     await AtsAnalysis.create({
       chat_id: String(ctx.chat.id),
       username: ctx.from.username || '',
       file_name: ctx.wizard.state.ats.fileName,
       job_description: jobDescription,
       ats_score: score,
+      fit_band: aiInsights?.fitBand || '',
       matched_keywords: matchedKeywords,
       missing_keywords: missingKeywords,
-      suggestions
+      suggestions: aiInsights?.improvementTips?.length ? aiInsights.improvementTips : suggestions,
+      resume_summary: aiInsights?.resumeSummary || '',
+      strengths: aiInsights?.strengths || [],
+      interview_questions: aiInsights?.interviewQuestions || [],
+      ai_enabled: Boolean(aiInsights)
     });
+
+    const fitBand = aiInsights?.fitBand || (score >= 75 ? 'Strong Match' : score >= 45 ? 'Moderate Match' : 'Low Match');
+    const finalSuggestions = aiInsights?.improvementTips?.length ? aiInsights.improvementTips : suggestions;
+    const keywordSuggestions = aiInsights?.keywordSuggestions || [];
+    const strengths = aiInsights?.strengths || [];
+    const interviewQuestions = aiInsights?.interviewQuestions || [];
+    const rewrittenBullets = aiInsights?.rewrittenBullets || [];
 
     const response = [
       '<b>ATS Analysis Result</b>',
       '',
       `<b>Resume:</b> ${ctx.wizard.state.ats.fileName}`,
       `<b>Score:</b> ${score}/100`,
+      `<b>Fit Band:</b> ${fitBand}`,
+      '',
+      `<b>Resume Summary:</b> ${aiInsights?.resumeSummary || 'AI summary unavailable. Basic ATS analysis was used.'}`,
       '',
       `<b>Matched Keywords:</b> ${matchedKeywords.slice(0, 12).join(', ') || 'None'}`,
       '',
       `<b>Missing Keywords:</b> ${missingKeywords.slice(0, 12).join(', ') || 'None'}`,
       '',
+      '<b>Strengths:</b>',
+      ...(strengths.length ? strengths.map((item, index) => `${index + 1}. ${item}`) : ['1. Resume parsing and keyword matching completed successfully.']),
+      '',
+      '<b>Keyword Suggestions:</b>',
+      ...(keywordSuggestions.length ? keywordSuggestions.map((item, index) => `${index + 1}. ${item}`) : ['1. Add missing keywords naturally in skills, projects, or experience sections.']),
+      '',
       '<b>Suggestions:</b>',
-      ...suggestions.map((item, index) => `${index + 1}. ${item}`)
+      ...finalSuggestions.map((item, index) => `${index + 1}. ${item}`),
+      '',
+      '<b>Better Resume Bullet Ideas:</b>',
+      ...(rewrittenBullets.length ? rewrittenBullets.map((item, index) => `${index + 1}. ${item}`) : ['1. AI bullet rewriting unavailable for this run.']),
+      '',
+      '<b>Interview Questions:</b>',
+      ...(interviewQuestions.length ? interviewQuestions.map((item, index) => `${index + 1}. ${item}`) : ['1. AI interview questions unavailable for this run.'])
     ].join('\n');
 
     await ctx.reply(response, { parse_mode: 'HTML' });

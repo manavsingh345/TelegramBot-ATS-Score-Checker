@@ -21,6 +21,10 @@ const atsAnalysisSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  fit_band: {
+    type: String,
+    default: ''
+  },
   matched_keywords: {
     type: [String],
     default: []
@@ -32,6 +36,22 @@ const atsAnalysisSchema = new mongoose.Schema({
   suggestions: {
     type: [String],
     default: []
+  },
+  resume_summary: {
+    type: String,
+    default: ''
+  },
+  strengths: {
+    type: [String],
+    default: []
+  },
+  interview_questions: {
+    type: [String],
+    default: []
+  },
+  ai_enabled: {
+    type: Boolean,
+    default: false
   },
   created_at: {
     type: Date,
