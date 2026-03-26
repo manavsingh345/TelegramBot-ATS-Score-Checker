@@ -21,6 +21,10 @@ const atsAnalysisSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  analysis_number: {
+    type: Number,
+    default: 0
+  },
   fit_band: {
     type: String,
     default: ''
@@ -52,6 +56,14 @@ const atsAnalysisSchema = new mongoose.Schema({
   ai_enabled: {
     type: Boolean,
     default: false
+  },
+  processing_time_ms: {
+    type: Number,
+    default: 0
+  },
+  processing_time_label: {
+    type: String,
+    default: ''
   },
   created_at: {
     type: Date,

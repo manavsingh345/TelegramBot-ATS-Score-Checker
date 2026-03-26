@@ -17,6 +17,7 @@ You can define how the bot should handle user input, what questions to ask, and 
 */
 const applicationScene = require('../scenes/applicationScene');
 const atsScene = require('../scenes/atsScene');
+const { sendCompare, sendHistory, sendStats } = require('./atsBotCommands');
  
 /*
 -Create Stage
@@ -41,6 +42,18 @@ bot.command('applications', (ctx) => {
 
 bot.command('ats', (ctx) => {
     ctx.scene.enter('atsScene');
+});
+
+bot.command('history', async (ctx) => {
+    await sendHistory(ctx);
+});
+
+bot.command('stats', async (ctx) => {
+    await sendStats(ctx);
+});
+
+bot.command('compare', async (ctx) => {
+    await sendCompare(ctx);
 });
 
 // helper function to send a message to the bot
