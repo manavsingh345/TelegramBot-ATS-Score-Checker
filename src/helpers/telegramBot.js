@@ -16,12 +16,13 @@ Each scene can have multiple steps, and when the user completes one step, the bo
 You can define how the bot should handle user input, what questions to ask, and how to move between steps or exit the scene.
 */
 const applicationScene = require('../scenes/applicationScene');
+const atsScene = require('../scenes/atsScene');
  
 /*
 -Create Stage
 Manages all scenes. It is essentially a collection of different scenes.
 */
-const stage = new Scenes.Stage([applicationScene]);
+const stage = new Scenes.Stage([applicationScene, atsScene]);
 
 // Launching a Telegram bot
 bot.use(session());
@@ -36,6 +37,10 @@ bot.command('chatid', (ctx) => {
 
 bot.command('applications', (ctx) => {
     ctx.scene.enter('applicationScene');
+});
+
+bot.command('ats', (ctx) => {
+    ctx.scene.enter('atsScene');
 });
 
 // helper function to send a message to the bot
