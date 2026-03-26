@@ -84,6 +84,85 @@ function sanitizeInsights(data) {
   };
 }
 
+async function callGeminiJson(prompt, responseSchema) {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: prompt }]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 2200,
+          responseMimeType: 'application/json',
+          responseSchema
+        }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API failed: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  const rawText = stripCodeFence(getResponseText(data));
+  const candidateText = rawText || extractJsonObject(JSON.stringify(data));
+
+  if (!candidateText) {
+    throw new Error('Gemini API returned an empty response.');
+  }
+
+  return JSON.parse(candidateText);
+}
+
+async function callGeminiText(prompt) {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: prompt }]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 1200
+        }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini chat failed: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  const text = getResponseText(data).trim();
+
+  if (!text) {
+    throw new Error('Gemini chat returned empty content.');
+  }
+
+  return text;
+}
+
 async function generateAiAtsInsights({ resumeText, jobDescription, score, matchedKeywords, missingKeywords }) {
   if (!GEMINI_API_KEY) {
     return null;
@@ -115,47 +194,36 @@ Job description:
 ${trimmedJobDescription}
 `.trim();
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 2200,
-          responseMimeType: 'application/json',
-          responseSchema: ATS_RESPONSE_SCHEMA
-        }
-      })
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API failed: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  const rawText = stripCodeFence(getResponseText(data));
-  const candidateText = rawText || extractJsonObject(JSON.stringify(data));
-
-  if (!candidateText) {
-    throw new Error('Gemini API returned an empty response.');
-  }
-
   try {
-    return sanitizeInsights(JSON.parse(candidateText));
+    return sanitizeInsights(await callGeminiJson(prompt, ATS_RESPONSE_SCHEMA));
   } catch (error) {
-    const extracted = extractJsonObject(candidateText);
+    const fallbackResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: prompt }]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 2200,
+            responseMimeType: 'application/json',
+            responseSchema: ATS_RESPONSE_SCHEMA
+          }
+        })
+      }
+    );
+
+    const fallbackData = await fallbackResponse.json();
+    const fallbackRawText = stripCodeFence(getResponseText(fallbackData));
+    const extracted = extractJsonObject(fallbackRawText || JSON.stringify(fallbackData));
 
     if (extracted) {
       return sanitizeInsights(JSON.parse(extracted));
@@ -165,6 +233,59 @@ ${trimmedJobDescription}
   }
 }
 
+async function generateFollowUpAnswer({ userMessage, latestAnalysis }) {
+  if (!GEMINI_API_KEY) {
+    return null;
+  }
+
+  const lowerMessage = userMessage.toLowerCase();
+  const wantsInterviewQuestions =
+    lowerMessage.includes('interview') || lowerMessage.includes('question');
+  const wantsAtsImprovement =
+    lowerMessage.includes('ats score') || lowerMessage.includes('improve my ats') || lowerMessage.includes('improve ats');
+
+  const analysisContext = latestAnalysis
+    ? `
+Latest ATS analysis context:
+- Resume file: ${latestAnalysis.file_name}
+- Score: ${latestAnalysis.ats_score}/100
+- Fit band: ${latestAnalysis.fit_band}
+- Matched keywords: ${(latestAnalysis.matched_keywords || []).join(', ') || 'none'}
+- Missing keywords: ${(latestAnalysis.missing_keywords || []).join(', ') || 'none'}
+- Suggestions: ${(latestAnalysis.suggestions || []).join(' | ') || 'none'}
+- Resume summary: ${latestAnalysis.resume_summary || 'none'}
+`.trim()
+    : 'No prior ATS analysis is available for this user yet.';
+
+  const prompt = `
+You are a Telegram ATS career assistant. Answer the user's follow-up question in a helpful, practical, well-structured way.
+
+Rules:
+- Answer in plain text.
+- Give a complete answer, not a one-line answer.
+- Prefer 4 to 7 concrete points when the user asks for ideas, questions, or improvements.
+- Keep the total answer under 450 words.
+- If the user asks about resume improvement, use the ATS context.
+- If the user asks something unrelated, still respond helpfully.
+- If there is no ATS context, suggest using /ats for a tailored analysis.
+- If the user asks for interview questions, provide 5 interview questions tailored to the job/resume, each with a short reason why it matters.
+- If the user asks how to improve ATS score, provide a clear step-by-step list based on the missing keywords and ATS context.
+- Do not stop after one point.
+
+${analysisContext}
+
+Conversation intent:
+- Interview questions requested: ${wantsInterviewQuestions ? 'yes' : 'no'}
+- ATS improvement requested: ${wantsAtsImprovement ? 'yes' : 'no'}
+
+User question:
+${userMessage}
+`.trim();
+
+  return callGeminiText(prompt);
+}
+
 module.exports = {
-  generateAiAtsInsights
+  generateAiAtsInsights,
+  generateFollowUpAnswer
 };

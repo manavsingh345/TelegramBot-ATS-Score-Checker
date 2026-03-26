@@ -18,6 +18,7 @@ You can define how the bot should handle user input, what questions to ask, and 
 const applicationScene = require('../scenes/applicationScene');
 const atsScene = require('../scenes/atsScene');
 const { sendCompare, sendHistory, sendStats } = require('./atsBotCommands');
+const { handleFollowUpChat } = require('./followUpChat');
  
 /*
 -Create Stage
@@ -29,7 +30,9 @@ const stage = new Scenes.Stage([applicationScene, atsScene]);
 bot.use(session());
 bot.use(stage.middleware());
 
-bot.start((ctx) => ctx.reply('welcome to hr notification bot.'));
+bot.start((ctx) => ctx.reply(
+    'Welcome to the ATS bot.\n\nUse /ats to analyze a resume, then keep chatting with me for follow-up help like resume edits, interview prep, or skill-gap advice.'
+));
 
 // command used to access chat id information to send a message to the bot
 bot.command('chatid', (ctx) => {
@@ -54,6 +57,20 @@ bot.command('stats', async (ctx) => {
 
 bot.command('compare', async (ctx) => {
     await sendCompare(ctx);
+});
+
+bot.command('help', async (ctx) => {
+    await ctx.reply(
+        'Commands:\n/ats - analyze resume against a job description\n/history - show recent ATS analyses\n/stats - show analysis stats\n/compare - compare your last 2 analyses\n/chatid - show your Telegram chat id\n\nAfter /ats, you can also ask follow-up questions in normal text.'
+    );
+});
+
+bot.use(async (ctx, next) => {
+    await next();
+
+    if (ctx.message?.text && !ctx.message.text.startsWith('/')) {
+        await handleFollowUpChat(ctx);
+    }
 });
 
 // helper function to send a message to the bot

@@ -4,6 +4,8 @@ const AtsAnalysis = require('../models/atsAnalyses');
 const { scoreResumeAgainstJob } = require('../helpers/atsScorer');
 const { generateAiAtsInsights } = require('../helpers/geminiService');
 const { formatDuration, getFitBandFromScore } = require('../helpers/atsMetrics');
+const { generateOptimizedResumeDraft } = require('../helpers/resumeDraftService');
+const { createResumePdf } = require('../helpers/resumePdfBuilder');
 const { getTelegramFileBuffer, extractResumeText } = require('../helpers/resumeParser');
 
 function escapeHtml(value = '') {
@@ -87,6 +89,34 @@ const atsScene = new Scenes.WizardScene(
         console.log('Gemini analysis skipped:', error.message);
       }
 
+      let generatedResumePath = '';
+      let resumeDraftCreated = false;
+
+      try {
+        const draft = await generateOptimizedResumeDraft({
+          fileName: ctx.wizard.state.ats.fileName,
+          resumeText: ctx.wizard.state.ats.resumeText,
+          jobDescription,
+          matchedKeywords,
+          missingKeywords,
+          aiInsights
+        });
+
+        generatedResumePath = await createResumePdf({
+          baseFileName: ctx.wizard.state.ats.fileName,
+          draft,
+          analysis: {
+            score,
+            fitBand: getFitBandFromScore(score),
+            matchedKeywords
+          }
+        });
+
+        resumeDraftCreated = true;
+      } catch (error) {
+        console.log('Resume PDF generation skipped:', error.message);
+      }
+
       const fitBand = getFitBandFromScore(score);
       const processingTimeMs = Date.now() - (ctx.wizard.state.ats.startedAt || Date.now());
       const processingTimeLabel = formatDuration(processingTimeMs);
@@ -106,6 +136,7 @@ const atsScene = new Scenes.WizardScene(
         resume_summary: aiInsights?.resumeSummary || '',
         strengths: aiInsights?.strengths || [],
         interview_questions: aiInsights?.interviewQuestions || [],
+        generated_resume_path: generatedResumePath,
         ai_enabled: Boolean(aiInsights),
         processing_time_ms: processingTimeMs,
         processing_time_label: processingTimeLabel
@@ -126,6 +157,7 @@ const atsScene = new Scenes.WizardScene(
         `<b>Fit Band:</b> ${escapeHtml(fitBand)}`,
         `<b>Processing Time:</b> ${escapeHtml(processingTimeLabel)}`,
         `<b>AI Mode:</b> ${aiInsights ? 'Gemini Enabled' : 'Fallback ATS'}`,
+        `<b>Updated Resume PDF:</b> ${resumeDraftCreated ? 'Ready to download below' : 'Could not generate in this run'}`,
         ...(aiInsights ? [] : ['', '<b>Note:</b> Gemini suggestions were unavailable for this run, so a safe ATS fallback was used.']),
         '',
         `<b>Resume Summary:</b> ${escapeHtml(aiInsights?.resumeSummary || 'AI summary unavailable. Basic ATS analysis was used.')}`,
@@ -147,7 +179,9 @@ const atsScene = new Scenes.WizardScene(
         ...(rewrittenBullets.length ? rewrittenBullets.map((item, index) => `${index + 1}. ${escapeHtml(item)}`) : ['1. AI bullet rewriting unavailable for this run.']),
         '',
         '<b>Interview Questions:</b>',
-        ...(interviewQuestions.length ? interviewQuestions.map((item, index) => `${index + 1}. ${escapeHtml(item)}`) : ['1. AI interview questions unavailable for this run.'])
+        ...(interviewQuestions.length ? interviewQuestions.map((item, index) => `${index + 1}. ${escapeHtml(item)}`) : ['1. AI interview questions unavailable for this run.']),
+        '',
+        '<b>Next:</b> You can now ask follow-up questions in chat, like "improve my summary", "what skills should I learn next?", or "ask me interview questions".'
       ].join('\n');
 
       if (progressMessage) {
@@ -159,6 +193,16 @@ const atsScene = new Scenes.WizardScene(
       }
 
       await ctx.reply(response, { parse_mode: 'HTML' });
+
+      if (generatedResumePath) {
+        await ctx.replyWithDocument({
+          source: generatedResumePath,
+          filename: `${ctx.wizard.state.ats.fileName.replace(/\.[^.]+$/, '')}_ats_resume.pdf`
+        }, {
+          caption: 'Your ATS-optimized resume draft is ready. Review it and customize it before applying.'
+        });
+      }
+
       return ctx.scene.leave();
     } catch (error) {
       console.log('ATS analysis failed:', error);

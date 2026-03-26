@@ -53,6 +53,10 @@ const atsAnalysisSchema = new mongoose.Schema({
     type: [String],
     default: []
   },
+  generated_resume_path: {
+    type: String,
+    default: ''
+  },
   ai_enabled: {
     type: Boolean,
     default: false
