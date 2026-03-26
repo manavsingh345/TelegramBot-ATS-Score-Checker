@@ -1,13 +1,12 @@
 const express = require('express');
-const bodyParser = require('body-parser');
+
+require('dotenv').config();
 
 const PORT = process.env.PORT || 8080;
 const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-
-require('dotenv').config();
 
 // Template Engine settings
 const path = require("path");
