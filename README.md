@@ -1,125 +1,233 @@
-# How To Create a Telegram Bot with Node.js
+# 🤖 Telegram Bot ATS Score Checker
 
-![alt text](https://raw.githubusercontent.com/FRTYZ/telegram-bot-nodejs/main/preview-image.png)
+A smart Telegram bot that analyzes resumes and provides an **ATS (Applicant Tracking System) compatibility score**.
+It helps job seekers improve their resumes by identifying missing keywords, formatting issues, and optimization suggestions.
 
+---
 
-## Hello Everyone,
+## 🚀 Features
 
-I will explain how to create a simple telegram bot using Node.js. While creating the Telegram bot, I made the resume pool project that human resources can use
+* 📄 Upload resume (PDF/DOCX)
+* 📊 Calculates ATS score instantly
+* 🔍 Keyword matching against job descriptions
+* 🧠 Resume optimization suggestions
+* ⚡ Fast and automated analysis
+* 🤖 Telegram bot interface
+* 📁 Supports multiple resume formats
+* 🛡️ Secure file processing
 
-## Preview (Youtube) 🎬
+---
 
-[![How To Create a Telegram Bot with Node.js](https://img.youtube.com/vi/6lunP5kC2Qk/maxresdefault.jpg)](https://www.youtube.com/watch?v=6lunP5kC2Qk)
+## 🛠️ Tech Stack
 
-## Features ✨
-- Receiving job applications from telegram bot
-- Receiving applications and transferring them to excel
+**Backend**
 
-## Tech 🛠
+* Node.js
+* Express.js
 
-- [Node.js (v20.10.0 or LTS version) ](https://nodejs.org/en)
-- [Express.js](https://expressjs.com/)
-- [MongoDB](https://www.mongodb.com/)
-- [Telegram API](https://core.telegram.org/bots/api)
+**Bot Integration**
 
+* Telegram Bot API
+* node-telegram-bot-api
 
-## Development 💻
+**Resume Processing**
 
-Here are the steps to run the project locally.
+* pdf-parse
+* mammoth (DOCX parser)
+* Natural Language Processing (NLP)
 
-1. Clone the repository
+**Optional / Advanced**
 
-    ```
-    git clone https://github.com/FRTYZ/telegram-bot-nodejs.git
-    ```
+* OpenAI API / LLM
+* MongoDB (for storing history)
+* Docker (for deployment)
 
-2. Install dependencies
+---
 
-    ```
-    npm install
-    ```
+## 📂 Project Structure
 
-3. Create Telegram bot
-
-    3.1. Open [BotFather](https://t.me/BotFather) to create a bot
-
-    3.2. Write the command to create a bot
-
-    ```
-    /newbot
-    ```
-
-    3.3. after you set the name and username, the process will look like the following. in the yellow area there will be a shortcut to open your bot. in the red area there is a token, use this token in the env file
-
-    ![alt text](https://raw.githubusercontent.com/FRTYZ/telegram-bot-nodejs/main/public/images/create-bot.png)
-
-4. Make a few connection settings to MongoDB
-
-    4.1. Create a cluster from [MongoDB](https://cloud.mongodb.com/) Create a new cluster named 'telegramBot'
-
-    ![alt text](https://raw.githubusercontent.com/FRTYZ/telegram-bot-nodejs/main/public/images/create-cluster.png)
-
-    4.2. Connect Cluster. 
-
-    Copy the link code in the red field
-
-    ![alt text](https://raw.githubusercontent.com/FRTYZ/telegram-bot-nodejs/main/public/images/connect-cluster.png)
-
-5. Create the .env file
-
-    ```
-    BOT_TOKEN = <Bot Token>
-    BOT_CHAT_ID = <Bot Chat ID>
-    MONGO_URI = <Bot_Chat_ID>
-    ```  
-
-6. Run the project
-
-    ```
-    npm run dev
-    ```
-
-7. Project setup is ready. To get bot chat id, open your bot and type the following command. The bot will tell you the chat id.
-
-    ```
-    /chatid
-    ```
-
-    ![alt text](https://raw.githubusercontent.com/FRTYZ/telegram-bot-nodejs/main/public/images/get-chat-id.png)
-
-    7.1. Copy the chat id and update the `BOT_CHAT_ID` value in the `.env` file
-
-8. 🎉 Project is now ready. The project will run on port `8080`
-
-### package.json
 ```
-{
-  "name": "telegram-bot-nodejs",
-  "version": "1.0.0",
-  "description": "Create a Telegram Bot with Node.js",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "npx nodemon src/index.js",
-    "start": "node src/index.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "dotenv": "^16.4.5",
-    "ejs": "^3.1.10",
-    "exceljs": "^4.4.0",
-    "express": "^4.21.0",
-    "express-session": "^1.18.0",
-    "mongoose": "^8.6.3",
-    "multer": "^1.4.5-lts.1",
-    "telegraf": "^4.16.3"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.6"
-  }
-}
+telegram-ats-bot/
+│
+├── bot/
+│   ├── bot.js
+│   └── handlers/
+│
+├── services/
+│   ├── atsChecker.js
+│   ├── resumeParser.js
+│   └── keywordMatcher.js
+│
+├── utils/
+│   ├── fileUpload.js
+│   └── scoreCalculator.js
+│
+├── uploads/
+│
+├── .env
+├── package.json
+├── Dockerfile
+└── README.md
 ```
 
-### Good codings
+---
+
+## ⚙️ Installation
+
+### 1️⃣ Clone the repository
+
+```bash
+git clone https://github.com/yourusername/telegram-ats-bot.git
+cd telegram-ats-bot
+```
+
+---
+
+### 2️⃣ Install dependencies
+
+```bash
+npm install
+```
+
+---
+
+### 3️⃣ Create environment file
+
+Create a `.env` file:
+
+```env
+BOT_TOKEN=your_telegram_bot_token
+PORT=3000
+OPENAI_API_KEY=your_api_key
+```
+
+---
+
+## ▶️ Run the Bot
+
+```bash
+npm start
+```
+
+or (development mode)
+
+```bash
+npm run dev
+```
+
+---
+
+## 🐳 Run with Docker
+
+Build the image:
+
+```bash
+docker build -t telegram-ats-bot .
+```
+
+Run the container:
+
+```bash
+docker run -p 3000:3000 telegram-ats-bot
+```
+
+---
+
+## 📌 Usage
+
+1. Open Telegram
+2. Search for your bot
+3. Send your resume file
+4. Receive ATS score and suggestions
+
+Example response:
+
+```
+ATS Score: 78%
+
+Missing Keywords:
+- REST API
+- Docker
+- System Design
+
+Suggestions:
+- Add measurable achievements
+- Use action verbs
+- Improve formatting
+```
+
+---
+
+## 📊 ATS Scoring Logic
+
+The ATS score is calculated based on:
+
+* Keyword matching
+* Resume formatting
+* Section presence
+* File readability
+* Content quality
+
+Example formula:
+
+```
+ATS Score =
+(Keyword Match * 40%) +
+(Formatting * 20%) +
+(Sections * 20%) +
+(Readability * 20%)
+```
+
+---
+
+## 🔐 Environment Variables
+
+```
+BOT_TOKEN
+OPENAI_API_KEY
+PORT
+```
+
+---
+
+## 🧪 Future Improvements
+
+* Resume vs Job Description matching
+* Multi-language support
+* Resume history dashboard
+* Web interface
+* AI-powered suggestions
+* Resume keyword optimization
+* PDF report generation
+
+---
+
+## 👨‍💻 Author
+
+**Manav Singh**
+
+Computer Science Student
+Full Stack Developer
+Backend & System Design Enthusiast
+
+---
+
+## ⭐ Contributing
+
+Contributions are welcome!
+
+```
+Fork the repo
+Create a new branch
+Commit your changes
+Push to the branch
+Open a Pull Request
+```
+
+---
+
+## 📄 License
+
+MIT License
+
+---
